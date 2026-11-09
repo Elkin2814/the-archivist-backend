@@ -1,0 +1,10 @@
+package com.thearchivist.api.player.infrastructure.haloApi.dto;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public record HaloXpDTO(
+        @JsonProperty("PreviousTotalXP") Integer previousTotalXp,
+        @JsonProperty("UpdatedTotalXP") Integer updatedTotalXp
+) {}
