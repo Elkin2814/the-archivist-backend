@@ -8,6 +8,7 @@ import com.thearchivist.api.stats.domain.enums.StateMatch;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface PlayerRepositoryPort {
     Optional<Player> findByGamertag(String gamertag);
@@ -18,21 +19,24 @@ public interface PlayerRepositoryPort {
      */
     void savePlayerHistory(Player player, List<PlayerMatch> matches);
 
-    /** Partidas del jugador, la más reciente primero. */
-    List<PlayerMatch> findMatches(String gamertag, int page, int size);
+    /** Partidas del jugador, la más reciente primero. {@code playlistIds} nulo/vacío = sin filtro. */
+    List<PlayerMatch> findMatches(String gamertag, int page, int size, List<UUID> playlistIds);
 
-    long countMatches(String gamertag);
+    long countMatches(String gamertag, List<UUID> playlistIds);
 
-    long countMatchesByState(String gamertag, StateMatch state);
+    long countMatchesByState(String gamertag, StateMatch state, List<UUID> playlistIds);
 
     /** Partidas de matchmaking por líder, de la más jugada a la menos jugada. */
-    List<PlayerSummary.LeaderStat> findLeaderStats(String gamertag);
+    List<PlayerSummary.LeaderStat> findLeaderStats(String gamertag, List<UUID> playlistIds);
 
     /** Partidas de matchmaking por modo de juego, de la más jugada a la menos jugada. */
-    List<PlayerSummary.ModeStat> findGameModeStats(String gamertag);
+    List<PlayerSummary.ModeStat> findGameModeStats(String gamertag, List<UUID> playlistIds);
+
+    /** Partidas de matchmaking por cola (playlist), de la más jugada a la menos jugada. Siempre sin filtrar. */
+    List<PlayerSummary.PlaylistStat> findPlaylistStats(String gamertag);
 
     /** Resultados de las últimas partidas de matchmaking, la más reciente primero. */
-    List<StateMatch> findRecentResults(String gamertag, int limit);
+    List<StateMatch> findRecentResults(String gamertag, int limit, List<UUID> playlistIds);
 
     /** Rango CSR tras la última partida clasificatoria guardada. */
     Optional<PlayerSummary.Csr> findLatestCsr(String gamertag);

@@ -9,6 +9,7 @@ import com.thearchivist.api.player.domain.ports.out.PlayerRepositoryPort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class GetPlayerSummaryService implements GetPlayerSummaryUseCase {
@@ -26,7 +27,7 @@ public class GetPlayerSummaryService implements GetPlayerSummaryUseCase {
     }
 
     @Override
-    public PlayerSummary execute(String gamertag) {
+    public PlayerSummary execute(String gamertag, List<UUID> playlistIds) {
         String tag = gamertag.trim();
 
         // Reutiliza la sincronización del historial: si el jugador no existe o está desactualizado,
@@ -36,8 +37,8 @@ public class GetPlayerSummaryService implements GetPlayerSummaryUseCase {
         Player player = playerRepositoryPort.findByGamertag(tag)
                 .orElseThrow(() -> new PlayerNotFoundException(tag));
 
-        List<PlayerSummary.LeaderStat> byLeader = playerRepositoryPort.findLeaderStats(tag);
-        List<PlayerSummary.ModeStat> byGameMode = playerRepositoryPort.findGameModeStats(tag);
+        List<PlayerSummary.LeaderStat> byLeader = playerRepositoryPort.findLeaderStats(tag, playlistIds);
+        List<PlayerSummary.ModeStat> byGameMode = playerRepositoryPort.findGameModeStats(tag, playlistIds);
 
         long matches = byLeader.stream().mapToLong(s -> s.totals().matches()).sum();
         long wins = byLeader.stream().mapToLong(s -> s.totals().wins()).sum();
@@ -48,7 +49,8 @@ public class GetPlayerSummaryService implements GetPlayerSummaryUseCase {
                 new PlayerSummary.Totals(matches, wins, losses),
                 byLeader,
                 byGameMode,
-                playerRepositoryPort.findRecentResults(tag, RECENT_FORM_SIZE),
+                playerRepositoryPort.findPlaylistStats(tag),
+                playerRepositoryPort.findRecentResults(tag, RECENT_FORM_SIZE, playlistIds),
                 playerRepositoryPort.findLatestCsr(tag).orElse(null)
         );
     }

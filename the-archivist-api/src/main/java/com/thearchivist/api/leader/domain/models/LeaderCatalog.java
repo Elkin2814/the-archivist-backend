@@ -7,13 +7,11 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * Los 16 líderes de Halo Wars 2. No saldrán más, por eso viven en el código.
- *
- * <p>{@code apiId} es el "LeaderId" que entregan Match History / Match Result.
- * Los IDs 1 a 7 están documentados en la Metadata API (Leaders). Los demás están en
- * {@code null} hasta confirmarlos con la API real: un líder sin ID no se asocia a ninguna
- * partida, y las partidas con un ID desconocido se muestran como "Líder #N".
+ * Aqui  hay 16 líderes de Halo Wars 2.
+ * Los 16 IDs están confirmados contra el historial de partidas de la Halo API.
  */
+
+// La estructura del Catálogoo es: ID, Nombre Completo, Alias o Nombre en Pantalla, Nombre Completo  en  Inglés y Alias o Nombre en Pantalla en Inglés
 public enum LeaderCatalog {
 
     // --- UNSC ---
@@ -25,13 +23,13 @@ public enum LeaderCatalog {
             "Professor Anders", "PROF. Anders", "Profesora Anders", "PROF. Anders"),
     FORGE(7, Faction.UNSC,
             "Sergeant Forge", "SGT. Forge", "Sargento Forge", "SGT. Forge"),
-    KINSANO(null, Faction.UNSC,
+    KINSANO(8, Faction.UNSC,
             "Kinsano", "Kinsano", "Kinsano", "Kinsano"),
-    JOHNSON(null, Faction.UNSC,
+    JOHNSON(11, Faction.UNSC,
             "Sergeant Johnson", "SGT. Johnson", "Sargento Johnson", "SGT. Johnson"),
-    JEROME(null, Faction.UNSC,
+    JEROME(9, Faction.UNSC,
             "Commander Jerome", "CDR. Jerome", "Comandante Jerome", "CDTE. Jerome"),
-    SERINA(null, Faction.UNSC,
+    SERINA(13, Faction.UNSC,
             "Serina", "Serina", "Serina", "Serina"),
 
     // --- Banished / Desterrados ---
@@ -41,15 +39,15 @@ public enum LeaderCatalog {
             "Atriox", "Atriox", "Atriox", "Atriox"),
     SHIPMASTER(6, Faction.BANISHED,
             "Shipmaster", "Shipmaster", "Maestro de Naves", "MTRO. de Naves"),
-    COLONY(null, Faction.BANISHED,
+    COLONY(12, Faction.BANISHED,
             "Colony", "Colony", "Colonia", "Colonia"),
-    ARBITER(null, Faction.BANISHED,
+    ARBITER(10, Faction.BANISHED,
             "Arbiter", "Arbiter", "Inquisidor", "Inquisidor"),
-    YAPYAP(null, Faction.BANISHED,
+    YAPYAP(14, Faction.BANISHED,
             "Yapyap the Destroyer", "Yapyap", "Yapyap el Destructor", "Yapyap"),
-    VORIDUS(null, Faction.BANISHED,
+    VORIDUS(16, Faction.BANISHED,
             "Voridus", "Voridus", "Voridus", "Voridus"),
-    PAVIUM(null, Faction.BANISHED,
+    PAVIUM(15, Faction.BANISHED,
             "Pavium", "Pavium", "Pavium", "Pavium");
 
     private final Integer apiId;

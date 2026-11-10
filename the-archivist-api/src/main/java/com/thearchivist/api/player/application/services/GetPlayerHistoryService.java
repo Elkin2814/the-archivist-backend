@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class GetPlayerHistoryService implements GetPlayerHistoryUseCase {
@@ -37,7 +38,7 @@ public class GetPlayerHistoryService implements GetPlayerHistoryUseCase {
     }
 
     @Override
-    public MatchHistory execute(String gamertag, int page, int size) {
+    public MatchHistory execute(String gamertag, int page, int size, List<UUID> playlistIds) {
         String tag = gamertag.trim();
 
         Optional<Player> existing = playerRepositoryPort.findByGamertag(tag);
@@ -48,10 +49,10 @@ public class GetPlayerHistoryService implements GetPlayerHistoryUseCase {
         Player player = playerRepositoryPort.findByGamertag(tag)
                 .orElseThrow(() -> new PlayerNotFoundException(tag));
 
-        List<PlayerMatch> matches = playerRepositoryPort.findMatches(tag, page, size);
-        long total = playerRepositoryPort.countMatches(tag);
-        long wins = playerRepositoryPort.countMatchesByState(tag, StateMatch.VICTORY);
-        long losses = playerRepositoryPort.countMatchesByState(tag, StateMatch.DEFEAT);
+        List<PlayerMatch> matches = playerRepositoryPort.findMatches(tag, page, size, playlistIds);
+        long total = playerRepositoryPort.countMatches(tag, playlistIds);
+        long wins = playerRepositoryPort.countMatchesByState(tag, StateMatch.VICTORY, playlistIds);
+        long losses = playerRepositoryPort.countMatchesByState(tag, StateMatch.DEFEAT, playlistIds);
 
         return new MatchHistory(player, matches, page, size, total, wins, losses);
     }

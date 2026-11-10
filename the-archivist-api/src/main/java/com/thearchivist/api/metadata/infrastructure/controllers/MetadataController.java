@@ -1,6 +1,7 @@
 package com.thearchivist.api.metadata.infrastructure.controllers;
 
 import com.thearchivist.api.metadata.domain.models.CsrDesignationInfo;
+import com.thearchivist.api.metadata.domain.models.LeaderMetadataInfo;
 import com.thearchivist.api.metadata.domain.models.MapInfo;
 import com.thearchivist.api.metadata.domain.models.PlaylistInfo;
 import com.thearchivist.api.metadata.domain.models.SeasonInfo;
@@ -20,6 +21,12 @@ public class MetadataController {
 
     public MetadataController(GetMetadataUseCase getMetadataUseCase) {
         this.getMetadataUseCase = getMetadataUseCase;
+    }
+
+    /** Líderes tal como los publica la Metadata (útil para verificar IDs e imágenes). */
+    @GetMapping("/leaders")
+    public List<LeaderMetadataInfo> leaders() {
+        return getMetadataUseCase.getLeaders();
     }
 
     @GetMapping("/maps")

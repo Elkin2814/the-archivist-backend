@@ -1,6 +1,7 @@
 package com.thearchivist.api.metadata.application.services;
 
 import com.thearchivist.api.metadata.domain.models.CsrDesignationInfo;
+import com.thearchivist.api.metadata.domain.models.LeaderMetadataInfo;
 import com.thearchivist.api.metadata.domain.models.MapInfo;
 import com.thearchivist.api.metadata.domain.models.PlaylistInfo;
 import com.thearchivist.api.metadata.domain.models.SeasonInfo;
@@ -17,6 +18,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+/*
+* En este servicio eestará la información de cada dato perteneciente al   lore del videojuego
+* como nombres del lider, mapas, eventos, poders,   tipos de juego,  etc
+* */
 @Service
 public class MetadataService implements GetMetadataUseCase, SyncMetadataUseCase {
 
@@ -32,19 +37,21 @@ public class MetadataService implements GetMetadataUseCase, SyncMetadataUseCase 
 
     @Override
     public int sync() {
+        List<LeaderMetadataInfo> leaders = haloClient.fetchLeaders();
         List<MapInfo> maps = haloClient.fetchMaps();
         List<PlaylistInfo> playlists = haloClient.fetchPlaylists();
         List<SeasonInfo> seasons = haloClient.fetchSeasons();
         List<CsrDesignationInfo> designations = haloClient.fetchCsrDesignations();
 
+        repository.saveLeaders(leaders);
         repository.saveMaps(maps);
         repository.savePlaylists(playlists);
         repository.saveSeasons(seasons);
         repository.saveCsrDesignations(designations);
 
-        int total = maps.size() + playlists.size() + seasons.size() + designations.size();
-        log.info("Metadata sincronizada: {} mapas, {} playlists, {} temporadas, {} rangos CSR",
-                maps.size(), playlists.size(), seasons.size(), designations.size());
+        int total = leaders.size() + maps.size() + playlists.size() + seasons.size() + designations.size();
+        log.info("Metadata sincronizada: {} líderes, {} mapas, {} playlists, {} temporadas, {} rangos CSR",
+                leaders.size(), maps.size(), playlists.size(), seasons.size(), designations.size());
         return total;
     }
 
@@ -58,6 +65,11 @@ public class MetadataService implements GetMetadataUseCase, SyncMetadataUseCase 
         } else {
             log.info("Metadata al día (última sincronización: {}); no se vuelve a descargar", oldest.get());
         }
+    }
+
+    @Override
+    public List<LeaderMetadataInfo> getLeaders() {
+        return repository.findLeaders();
     }
 
     @Override

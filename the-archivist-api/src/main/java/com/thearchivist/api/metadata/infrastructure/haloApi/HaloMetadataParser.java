@@ -1,6 +1,7 @@
 package com.thearchivist.api.metadata.infrastructure.haloApi;
 
 import com.thearchivist.api.metadata.domain.models.CsrDesignationInfo;
+import com.thearchivist.api.metadata.domain.models.LeaderMetadataInfo;
 import com.thearchivist.api.metadata.domain.models.MapInfo;
 import com.thearchivist.api.metadata.domain.models.PlaylistInfo;
 import com.thearchivist.api.metadata.domain.models.SeasonInfo;
@@ -40,13 +41,34 @@ final class HaloMetadataParser {
         return value == null ? null : value.toString();
     }
 
+    /** Acepta el UUID con guiones o como la Metadata lo publica: 32 hexadecimales seguidos. */
     private static UUID uuid(Object value) {
         if (value == null) return null;
+        String raw = value.toString().trim();
+        if (raw.length() == 32) {
+            raw = raw.substring(0, 8) + "-" + raw.substring(8, 12) + "-" + raw.substring(12, 16)
+                    + "-" + raw.substring(16, 20) + "-" + raw.substring(20);
+        }
         try {
-            return UUID.fromString(value.toString().trim());
+            return UUID.fromString(raw);
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    /** Solo contenido publicado; si la Metadata no trae el campo "Status" se da por publicado. */
+    private static boolean isPublished(Map<String, Object> view) {
+        Object status = view.get("Status");
+        return status == null || "Published".equalsIgnoreCase(status.toString().trim());
+    }
+
+    /** Primer valor que sea un UUID válido (la Metadata no siempre pone el ID en el mismo sitio). */
+    private static UUID firstUuid(Object... candidates) {
+        for (Object candidate : candidates) {
+            UUID id = uuid(candidate);
+            if (id != null) return id;
+        }
+        return null;
     }
 
     private static Instant instant(Object value) {
@@ -72,19 +94,40 @@ final class HaloMetadataParser {
         return text(view.get("Title"));
     }
 
+    /** URL pública de la imagen del ítem: &lt;bloque&gt;.Image.View.Media.MediaUrl. */
+    private static String imageUrl(Map<String, Object> block) {
+        Object url = asMap(asMap(asMap(block.get("Image")).get("View")).get("Media")).get("MediaUrl");
+        return url == null || url.toString().isBlank() ? null : url.toString();
+    }
+
+    static Optional<LeaderMetadataInfo> toLeader(Map<String, Object> item) {
+        Map<String, Object> view = asMap(item.get("View"));
+        Map<String, Object> block = asMap(view.get("HW2Leader"));
+        Integer id;
+        try {
+            id = Integer.valueOf(String.valueOf(block.get("ID")).trim());
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
+        String name = displayName(view, block);
+        if (name == null) return Optional.empty();
+        return Optional.of(new LeaderMetadataInfo(id, name, text(block.get("Faction")), imageUrl(block)));
+    }
+
     static Optional<MapInfo> toMap(Map<String, Object> item) {
         Map<String, Object> view = asMap(item.get("View"));
         Map<String, Object> block = asMap(view.get("HW2Map"));
         String id = text(block.get("ID"));
         String name = displayName(view, block);
         if (id == null || id.isBlank() || name == null) return Optional.empty();
-        return Optional.of(new MapInfo(id, uuid(view.get("Identity")), name));
+        return Optional.of(new MapInfo(id, uuid(view.get("Identity")), name, imageUrl(block)));
     }
 
     static Optional<PlaylistInfo> toPlaylist(Map<String, Object> item) {
         Map<String, Object> view = asMap(item.get("View"));
         Map<String, Object> block = asMap(view.get("HW2Playlist"));
-        UUID id = uuid(view.get("Identity"));
+        if (!isPublished(view)) return Optional.empty();
+        UUID id = firstUuid(view.get("Identity"), block.get("ID"), block.get("Id"), block.get("id"));
         String name = displayName(view, block);
         if (id == null || name == null) return Optional.empty();
         return Optional.of(new PlaylistInfo(id, name,
@@ -96,7 +139,7 @@ final class HaloMetadataParser {
     static Optional<SeasonInfo> toSeason(Map<String, Object> item) {
         Map<String, Object> view = asMap(item.get("View"));
         Map<String, Object> block = asMap(view.get("HW2Season"));
-        UUID id = uuid(view.get("Identity"));
+        UUID id = firstUuid(view.get("Identity"), block.get("ID"), block.get("Id"), block.get("id"));
         String name = displayName(view, block);
         if (id == null || name == null) return Optional.empty();
         return Optional.of(new SeasonInfo(id, name, instant(block.get("StartDate"))));

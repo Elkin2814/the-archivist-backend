@@ -1,6 +1,7 @@
 package com.thearchivist.api.metadata.infrastructure.persistence;
 
 import com.thearchivist.api.metadata.domain.models.CsrDesignationInfo;
+import com.thearchivist.api.metadata.domain.models.LeaderMetadataInfo;
 import com.thearchivist.api.metadata.domain.models.MapInfo;
 import com.thearchivist.api.metadata.domain.models.PlaylistInfo;
 import com.thearchivist.api.metadata.domain.models.SeasonInfo;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -30,17 +32,47 @@ public class MetadataJdbcAdapter implements MetadataRepositoryPort {
 
     @Override
     @Transactional
+    public void saveLeaders(List<LeaderMetadataInfo> leaders) {
+        for (LeaderMetadataInfo l : leaders) {
+            jdbc.sql("""
+                    INSERT INTO the_archivist.leader_metadata (leader_id, name, faction, image_url, synced_at)
+                    VALUES (:id, :name, :faction, :image, now())
+                    ON CONFLICT (leader_id) DO UPDATE
+                    SET name = EXCLUDED.name, faction = EXCLUDED.faction,
+                        image_url = EXCLUDED.image_url, synced_at = now()
+                    """)
+                    .param("id", l.id())
+                    .param("name", l.name())
+                    .param("faction", l.faction(), Types.VARCHAR)
+                    .param("image", l.imageUrl(), Types.VARCHAR)
+                    .update();
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LeaderMetadataInfo> findLeaders() {
+        return jdbc.sql("SELECT leader_id, name, faction, image_url FROM the_archivist.leader_metadata ORDER BY leader_id")
+                .query((rs, i) -> new LeaderMetadataInfo(rs.getInt("leader_id"), rs.getString("name"),
+                        rs.getString("faction"), rs.getString("image_url")))
+                .list();
+    }
+
+    @Override
+    @Transactional
     public void saveMaps(List<MapInfo> maps) {
         for (MapInfo m : maps) {
             jdbc.sql("""
-                    INSERT INTO the_archivist.maps (map_id, identity, name, synced_at)
-                    VALUES (:id, :identity, :name, now())
+                    INSERT INTO the_archivist.maps (map_id, identity, name, image_url, synced_at)
+                    VALUES (:id, :identity, :name, :image, now())
                     ON CONFLICT (map_id) DO UPDATE
-                    SET identity = EXCLUDED.identity, name = EXCLUDED.name, synced_at = now()
+                    SET identity = EXCLUDED.identity, name = EXCLUDED.name,
+                        image_url = EXCLUDED.image_url, synced_at = now()
                     """)
                     .param("id", m.id())
                     .param("identity", m.identity())
                     .param("name", m.name())
+                    .param("image", m.imageUrl(), Types.VARCHAR)
                     .update();
         }
     }
@@ -62,6 +94,13 @@ public class MetadataJdbcAdapter implements MetadataRepositoryPort {
                     .param("stats", p.statsClassification())
                     .param("team", p.teamGame())
                     .param("hidden", p.hidden())
+                    .update();
+        }
+        // Lo que ya no está publicado en la Metadata se retira (matches.playlist_id no es llave foránea).
+        // Si la descarga llegó vacía no se borra nada, para no vaciar la tabla por un fallo.
+        if (!playlists.isEmpty()) {
+            jdbc.sql("DELETE FROM the_archivist.playlists WHERE playlist_id NOT IN (:ids)")
+                    .param("ids", playlists.stream().map(PlaylistInfo::id).toList())
                     .update();
         }
     }
@@ -102,9 +141,9 @@ public class MetadataJdbcAdapter implements MetadataRepositoryPort {
     @Override
     @Transactional(readOnly = true)
     public List<MapInfo> findMaps() {
-        return jdbc.sql("SELECT map_id, identity, name FROM the_archivist.maps ORDER BY name")
-                .query((rs, i) -> new MapInfo(
-                        rs.getString("map_id"), rs.getObject("identity", UUID.class), rs.getString("name")))
+        return jdbc.sql("SELECT map_id, identity, name, image_url FROM the_archivist.maps ORDER BY name")
+                .query((rs, i) -> new MapInfo(rs.getString("map_id"), rs.getObject("identity", UUID.class),
+                        rs.getString("name"), rs.getString("image_url")))
                 .list();
     }
 
@@ -147,7 +186,8 @@ public class MetadataJdbcAdapter implements MetadataRepositoryPort {
     @Override
     @Transactional(readOnly = true)
     public Optional<Instant> oldestSync() {
-        // Si alguna tabla está vacía, su min() es nulo y se considera que falta sincronizar.
+        // Si alguna tabla está vacía se considera que falta sincronizar. leader_metadata no cuenta:
+        // la API no trae ID de líder, así que esa tabla puede quedar vacía sin que sea un error.
         return jdbc.sql("""
                         SELECT CASE WHEN (SELECT count(*) FROM the_archivist.maps) = 0
                                       OR (SELECT count(*) FROM the_archivist.playlists) = 0

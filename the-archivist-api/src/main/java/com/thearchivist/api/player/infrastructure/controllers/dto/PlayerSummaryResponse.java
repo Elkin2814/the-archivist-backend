@@ -2,6 +2,7 @@ package com.thearchivist.api.player.infrastructure.controllers.dto;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Resumen del jugador para la pantalla de perfil. Solo cuenta partidas de matchmaking.
@@ -13,6 +14,7 @@ public record PlayerSummaryResponse(
         Totals overall,
         List<LeaderLine> byLeader,
         List<ModeLine> byGameMode,
+        List<PlaylistLine> byPlaylist,
         List<String> recentForm,
         Csr currentCsr
 ) {
@@ -22,6 +24,9 @@ public record PlayerSummaryResponse(
                              long matches, long wins, long losses, double winRate) {}
 
     public record ModeLine(String gameMode, long matches, long wins, long losses, double winRate) {}
+
+    /** Una cola jugada (playlistId se traduce a nombre con /metadata/playlists). Nunca depende del filtro. */
+    public record PlaylistLine(UUID playlistId, long matches, long wins, long losses, double winRate) {}
 
     public record Csr(Integer designation, Integer tier) {}
 }

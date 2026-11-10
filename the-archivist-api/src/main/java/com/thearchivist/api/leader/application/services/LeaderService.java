@@ -7,6 +7,9 @@ import com.thearchivist.api.leader.domain.ports.in.GetMostWinRateLeaderUseCase;
 
 import java.util.List;
 
+/*
+*  Servicios para obtener lideres más jugados y con mayor tasa de éxito para un jugador
+* */
 public class LeaderService implements GetMostPlayedLeaderUseCase, GetMostWinRateLeaderUseCase {
 
     private final GetMostPlayedLeaderUseCase getMostPlayedLeaderUseCase;

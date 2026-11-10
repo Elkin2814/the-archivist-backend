@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/players")
@@ -43,19 +44,24 @@ public class PlayerController {
     public ResponseEntity<MatchHistoryResponse> getPlayerHistory(
             @PathVariable @Pattern(regexp = GAMERTAG_REGEX, message = "Gamertag inválido") String gamertag,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) List<UUID> playlistId) {
 
-        MatchHistory history = getPlayerHistoryUseCase.execute(gamertag, page, size);
+        MatchHistory history = getPlayerHistoryUseCase.execute(gamertag, page, size, playlistId);
         return ResponseEntity.ok(toResponse(history));
     }
 
-    /** Resumen del jugador: totales, rendimiento por líder y modo, forma reciente y rango. */
+    /**
+     * Resumen del jugador: totales, rendimiento por líder y modo, forma reciente y rango.
+     * Con {@code playlistId} todo se recalcula solo con esa cola; {@code byPlaylist} siempre trae todas las colas jugadas.
+     */
     @GetMapping("/{gamertag}/summary")
     public ResponseEntity<PlayerSummaryResponse> getPlayerSummary(
             @PathVariable @Pattern(regexp = GAMERTAG_REGEX, message = "Gamertag inválido") String gamertag,
-            @RequestParam(defaultValue = "es") String lang) {
+            @RequestParam(defaultValue = "es") String lang,
+            @RequestParam(required = false) List<UUID> playlistId) {
 
-        PlayerSummary summary = getPlayerSummaryUseCase.execute(gamertag);
+        PlayerSummary summary = getPlayerSummaryUseCase.execute(gamertag, playlistId);
         return ResponseEntity.ok(toSummaryResponse(summary, Language.fromCode(lang)));
     }
 
@@ -78,6 +84,11 @@ public class PlayerController {
                         s.totals().matches(), s.totals().wins(), s.totals().losses(), s.totals().winRate()))
                 .toList();
 
+        List<PlayerSummaryResponse.PlaylistLine> playlists = summary.byPlaylist().stream()
+                .map(s -> new PlayerSummaryResponse.PlaylistLine(s.playlistId(),
+                        s.totals().matches(), s.totals().wins(), s.totals().losses(), s.totals().winRate()))
+                .toList();
+
         // "W" victoria, "L" derrota, "D" empate, "?" desconocido.
         List<String> form = summary.recentForm().stream()
                 .map(r -> switch (r) {
@@ -96,6 +107,7 @@ public class PlayerController {
                 new PlayerSummaryResponse.Totals(o.matches(), o.wins(), o.losses(), o.winRate()),
                 leaders,
                 modes,
+                playlists,
                 form,
                 csr == null ? null : new PlayerSummaryResponse.Csr(csr.designation(), csr.tier())
         );

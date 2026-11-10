@@ -1,6 +1,7 @@
 package com.thearchivist.api.metadata.domain.ports.out;
 
 import com.thearchivist.api.metadata.domain.models.CsrDesignationInfo;
+import com.thearchivist.api.metadata.domain.models.LeaderMetadataInfo;
 import com.thearchivist.api.metadata.domain.models.MapInfo;
 import com.thearchivist.api.metadata.domain.models.PlaylistInfo;
 import com.thearchivist.api.metadata.domain.models.SeasonInfo;
@@ -10,6 +11,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MetadataRepositoryPort {
+    void saveLeaders(List<LeaderMetadataInfo> leaders);
+
     void saveMaps(List<MapInfo> maps);
 
     void savePlaylists(List<PlaylistInfo> playlists);
@@ -17,6 +20,8 @@ public interface MetadataRepositoryPort {
     void saveSeasons(List<SeasonInfo> seasons);
 
     void saveCsrDesignations(List<CsrDesignationInfo> designations);
+
+    List<LeaderMetadataInfo> findLeaders();
 
     List<MapInfo> findMaps();
 

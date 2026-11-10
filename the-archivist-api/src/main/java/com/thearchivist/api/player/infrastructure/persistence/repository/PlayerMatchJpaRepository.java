@@ -48,6 +48,58 @@ public interface PlayerMatchJpaRepository extends JpaRepository<PlayerMatchEntit
             + "where pm.player.id = :playerId and pm.csrDesignationAfter is not null order by m.startDate desc")
     List<PlayerMatchEntity> findLatestWithCsr(@Param("playerId") Long playerId, Pageable pageable);
 
+    // --- Variantes filtradas por cola (playlist) ---
+
+    @Query(value = "select pm from PlayerMatchEntity pm join fetch pm.match m "
+            + "where pm.player.id = :playerId and m.playlistId in :playlistIds order by m.startDate desc",
+            countQuery = "select count(pm) from PlayerMatchEntity pm join pm.match m "
+                    + "where pm.player.id = :playerId and m.playlistId in :playlistIds")
+    Page<PlayerMatchEntity> findPageByPlayerIdAndPlaylist(@Param("playerId") Long playerId,
+                                                          @Param("playlistIds") List<UUID> playlistIds,
+                                                          Pageable pageable);
+
+    @Query("select count(pm) from PlayerMatchEntity pm join pm.match m "
+            + "where pm.player.id = :playerId and m.playlistId in :playlistIds")
+    long countByPlayerAndPlaylist(@Param("playerId") Long playerId, @Param("playlistIds") List<UUID> playlistIds);
+
+    @Query("select count(pm) from PlayerMatchEntity pm join pm.match m "
+            + "where pm.player.id = :playerId and m.playlistId in :playlistIds and pm.outcome = :outcome")
+    long countByPlayerAndOutcomeAndPlaylist(@Param("playerId") Long playerId,
+                                            @Param("playlistIds") List<UUID> playlistIds,
+                                            @Param("outcome") int outcome);
+
+    @Query("select pm.leaderId, count(pm), "
+            + "sum(case when pm.outcome = 1 then 1 else 0 end), "
+            + "sum(case when pm.outcome = 2 then 1 else 0 end) "
+            + "from PlayerMatchEntity pm join pm.match m "
+            + "where pm.player.id = :playerId and m.matchType = 3 and m.playlistId in :playlistIds "
+            + "group by pm.leaderId order by count(pm) desc")
+    List<Object[]> leaderStatsByPlaylist(@Param("playerId") Long playerId, @Param("playlistIds") List<UUID> playlistIds);
+
+    @Query("select m.gameMode, count(pm), "
+            + "sum(case when pm.outcome = 1 then 1 else 0 end), "
+            + "sum(case when pm.outcome = 2 then 1 else 0 end) "
+            + "from PlayerMatchEntity pm join pm.match m "
+            + "where pm.player.id = :playerId and m.matchType = 3 and m.playlistId in :playlistIds "
+            + "group by m.gameMode order by count(pm) desc")
+    List<Object[]> gameModeStatsByPlaylist(@Param("playerId") Long playerId, @Param("playlistIds") List<UUID> playlistIds);
+
+    @Query("select pm from PlayerMatchEntity pm join fetch pm.match m "
+            + "where pm.player.id = :playerId and m.matchType = 3 and m.playlistId in :playlistIds "
+            + "order by m.startDate desc")
+    List<PlayerMatchEntity> findRecentMatchmakingByPlaylist(@Param("playerId") Long playerId,
+                                                            @Param("playlistIds") List<UUID> playlistIds,
+                                                            Pageable pageable);
+
+    /** Una fila por cola jugada: [playlistId, partidas, victorias, derrotas]. */
+    @Query("select m.playlistId, count(pm), "
+            + "sum(case when pm.outcome = 1 then 1 else 0 end), "
+            + "sum(case when pm.outcome = 2 then 1 else 0 end) "
+            + "from PlayerMatchEntity pm join pm.match m "
+            + "where pm.player.id = :playerId and m.matchType = 3 and m.playlistId is not null "
+            + "group by m.playlistId order by count(pm) desc")
+    List<Object[]> playlistStats(@Param("playerId") Long playerId);
+
     @Query("select count(pm) from PlayerMatchEntity pm where pm.player.id = :playerId")
     long countByPlayer(@Param("playerId") Long playerId);
 

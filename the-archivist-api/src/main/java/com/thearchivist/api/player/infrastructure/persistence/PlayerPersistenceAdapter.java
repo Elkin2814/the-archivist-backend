@@ -131,9 +131,11 @@ public class PlayerPersistenceAdapter implements PlayerRepositoryPort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PlayerMatch> findMatches(String gamertag, int page, int size) {
+    public List<PlayerMatch> findMatches(String gamertag, int page, int size, List<UUID> playlistIds) {
         return playerJpa.findByGamerTag(gamertag)
-                .map(p -> playerMatchJpa.findPageByPlayerId(p.getId(), PageRequest.of(page, size))
+                .map(p -> (playlistIds == null || playlistIds.isEmpty()
+                        ? playerMatchJpa.findPageByPlayerId(p.getId(), PageRequest.of(page, size))
+                        : playerMatchJpa.findPageByPlayerIdAndPlaylist(p.getId(), playlistIds, PageRequest.of(page, size)))
                         .stream()
                         .map(PlayerPersistenceMapper::toDomain)
                         .toList())
@@ -142,25 +144,31 @@ public class PlayerPersistenceAdapter implements PlayerRepositoryPort {
 
     @Override
     @Transactional(readOnly = true)
-    public long countMatches(String gamertag) {
+    public long countMatches(String gamertag, List<UUID> playlistIds) {
         return playerJpa.findByGamerTag(gamertag)
-                .map(p -> playerMatchJpa.countByPlayer(p.getId()))
+                .map(p -> playlistIds == null || playlistIds.isEmpty()
+                        ? playerMatchJpa.countByPlayer(p.getId())
+                        : playerMatchJpa.countByPlayerAndPlaylist(p.getId(), playlistIds))
                 .orElse(0L);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public long countMatchesByState(String gamertag, StateMatch state) {
+    public long countMatchesByState(String gamertag, StateMatch state, List<UUID> playlistIds) {
         return playerJpa.findByGamerTag(gamertag)
-                .map(p -> playerMatchJpa.countByPlayerAndOutcome(p.getId(), state.getCode()))
+                .map(p -> playlistIds == null || playlistIds.isEmpty()
+                        ? playerMatchJpa.countByPlayerAndOutcome(p.getId(), state.getCode())
+                        : playerMatchJpa.countByPlayerAndOutcomeAndPlaylist(p.getId(), playlistIds, state.getCode()))
                 .orElse(0L);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<PlayerSummary.LeaderStat> findLeaderStats(String gamertag) {
+    public List<PlayerSummary.LeaderStat> findLeaderStats(String gamertag, List<UUID> playlistIds) {
         return playerJpa.findByGamerTag(gamertag)
-                .map(p -> playerMatchJpa.leaderStats(p.getId()).stream()
+                .map(p -> (playlistIds == null || playlistIds.isEmpty()
+                        ? playerMatchJpa.leaderStats(p.getId())
+                        : playerMatchJpa.leaderStatsByPlaylist(p.getId(), playlistIds)).stream()
                         .map(row -> new PlayerSummary.LeaderStat(((Number) row[0]).intValue(), totals(row)))
                         .toList())
                 .orElse(List.of());
@@ -168,9 +176,11 @@ public class PlayerPersistenceAdapter implements PlayerRepositoryPort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PlayerSummary.ModeStat> findGameModeStats(String gamertag) {
+    public List<PlayerSummary.ModeStat> findGameModeStats(String gamertag, List<UUID> playlistIds) {
         return playerJpa.findByGamerTag(gamertag)
-                .map(p -> playerMatchJpa.gameModeStats(p.getId()).stream()
+                .map(p -> (playlistIds == null || playlistIds.isEmpty()
+                        ? playerMatchJpa.gameModeStats(p.getId())
+                        : playerMatchJpa.gameModeStatsByPlaylist(p.getId(), playlistIds)).stream()
                         .map(row -> new PlayerSummary.ModeStat(GameMode.fromCode(((Number) row[0]).intValue()), totals(row)))
                         .toList())
                 .orElse(List.of());
@@ -178,9 +188,21 @@ public class PlayerPersistenceAdapter implements PlayerRepositoryPort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<StateMatch> findRecentResults(String gamertag, int limit) {
+    public List<PlayerSummary.PlaylistStat> findPlaylistStats(String gamertag) {
         return playerJpa.findByGamerTag(gamertag)
-                .map(p -> playerMatchJpa.findRecentMatchmaking(p.getId(), PageRequest.of(0, limit)).stream()
+                .map(p -> playerMatchJpa.playlistStats(p.getId()).stream()
+                        .map(row -> new PlayerSummary.PlaylistStat((UUID) row[0], totals(row)))
+                        .toList())
+                .orElse(List.of());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StateMatch> findRecentResults(String gamertag, int limit, List<UUID> playlistIds) {
+        return playerJpa.findByGamerTag(gamertag)
+                .map(p -> (playlistIds == null || playlistIds.isEmpty()
+                        ? playerMatchJpa.findRecentMatchmaking(p.getId(), PageRequest.of(0, limit))
+                        : playerMatchJpa.findRecentMatchmakingByPlaylist(p.getId(), playlistIds, PageRequest.of(0, limit))).stream()
                         .map(pm -> StateMatch.fromOutcome(pm.getOutcome()))
                         .toList())
                 .orElse(List.of());

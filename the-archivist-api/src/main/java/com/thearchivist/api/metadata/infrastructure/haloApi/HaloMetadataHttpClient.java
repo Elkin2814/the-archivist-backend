@@ -2,6 +2,7 @@ package com.thearchivist.api.metadata.infrastructure.haloApi;
 
 import com.thearchivist.api.config.HaloApiProperties;
 import com.thearchivist.api.metadata.domain.models.CsrDesignationInfo;
+import com.thearchivist.api.metadata.domain.models.LeaderMetadataInfo;
 import com.thearchivist.api.metadata.domain.models.MapInfo;
 import com.thearchivist.api.metadata.domain.models.PlaylistInfo;
 import com.thearchivist.api.metadata.domain.models.SeasonInfo;
@@ -55,6 +56,11 @@ public class HaloMetadataHttpClient implements HaloMetadataClientPort {
     }
 
     @Override
+    public List<LeaderMetadataInfo> fetchLeaders() {
+        return fetchAll("leaders", HaloMetadataParser::toLeader);
+    }
+
+    @Override
     public List<MapInfo> fetchMaps() {
         return fetchAll("maps", HaloMetadataParser::toMap);
     }
@@ -81,16 +87,27 @@ public class HaloMetadataHttpClient implements HaloMetadataClientPort {
         }
 
         List<T> result = new ArrayList<>();
+        int received = 0;
+        Map<String, Object> sample = null;
         int startAt = 0;
         for (int pageNumber = 0; pageNumber < MAX_PAGES; pageNumber++) {
             Map<String, Object> page = fetchPage(resource, startAt);
             List<Map<String, Object>> items = HaloMetadataParser.contentItems(page);
+            received += items.size();
+            if (sample == null && !items.isEmpty()) sample = items.get(0);
             items.stream().map(parser).flatMap(Optional::stream).forEach(result::add);
 
             startAt += PAGE_SIZE;
             if (items.isEmpty() || startAt >= HaloMetadataParser.totalCount(page)) break;
         }
         log.info("Halo Metadata /{}: {} registros", resource, result.size());
+        if (result.isEmpty() && received > 0) {
+            String text = String.valueOf(sample);
+            log.warn("Halo Metadata /{}: llegaron {} ítems pero ninguno se pudo interpretar. Primer ítem: {}",
+                    resource, received, text.length() > 1500 ? text.substring(0, 1500) + "…" : text);
+        } else if (received == 0) {
+            log.warn("Halo Metadata /{}: la API no devolvió ítems (ContentItems vacío)", resource);
+        }
         return result;
     }
 

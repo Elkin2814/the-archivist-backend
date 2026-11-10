@@ -4,6 +4,7 @@ import com.thearchivist.api.stats.domain.enums.GameMode;
 import com.thearchivist.api.stats.domain.enums.StateMatch;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Resumen de un jugador calculado sobre sus partidas de matchmaking guardadas:
@@ -14,6 +15,7 @@ public record PlayerSummary(
         Totals overall,
         List<LeaderStat> byLeader,
         List<ModeStat> byGameMode,
+        List<PlaylistStat> byPlaylist,
         List<StateMatch> recentForm,
         Csr currentCsr
 ) {
@@ -28,6 +30,9 @@ public record PlayerSummary(
     public record LeaderStat(int leaderId, Totals totals) {}
 
     public record ModeStat(GameMode gameMode, Totals totals) {}
+
+    /** Rendimiento en una cola concreta (por ejemplo, 3 vs 3 Deathmatch). */
+    public record PlaylistStat(UUID playlistId, Totals totals) {}
 
     /** Rango CSR (designación y tier) tras la última partida clasificatoria guardada. */
     public record Csr(Integer designation, Integer tier) {}
