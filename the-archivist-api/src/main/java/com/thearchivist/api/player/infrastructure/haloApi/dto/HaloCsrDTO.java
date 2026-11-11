@@ -6,5 +6,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record HaloCsrDTO(
         @JsonProperty("Tier") Integer tier,
-        @JsonProperty("Designation") Integer designation
+        @JsonProperty("Designation") Integer designation,
+        @JsonProperty("Raw") Integer raw,
+        @JsonProperty("PercentToNextTier") Integer percentToNextTier,
+        @JsonProperty("MeasurementMatchesRemaining") Integer measurementMatchesRemaining,
+        @JsonProperty("Rank") Integer rank
 ) {}

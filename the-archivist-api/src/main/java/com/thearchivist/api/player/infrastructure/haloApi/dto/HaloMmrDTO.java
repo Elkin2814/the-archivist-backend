@@ -4,4 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record HaloMmrDTO(@JsonProperty("Rating") Double rating) {}
+public record HaloMmrDTO(
+        @JsonProperty("Rating") Double rating,
+        @JsonProperty("Variance") Double variance
+) {}

@@ -21,6 +21,14 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    /** Parámetros incoherentes (por ejemplo, un rango mínimo mayor que el máximo). */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Parámetros inválidos");
+        return problem;
+    }
+
     @ExceptionHandler(HaloApiUnavailableException.class)
     public ProblemDetail handleHaloUnavailable(HaloApiUnavailableException ex) {
         // El detalle técnico (llave inválida, límite, etc.) queda en el log, no en la respuesta.

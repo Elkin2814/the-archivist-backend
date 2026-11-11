@@ -9,6 +9,8 @@ import com.thearchivist.api.player.infrastructure.persistence.entity.PlayerMatch
 import com.thearchivist.api.stats.domain.enums.GameMode;
 import com.thearchivist.api.stats.domain.enums.MatchType;
 import com.thearchivist.api.stats.domain.enums.StateMatch;
+import com.thearchivist.api.stats.domain.models.CsrReading;
+import com.thearchivist.api.stats.domain.models.MmrReading;
 
 import java.time.Duration;
 
@@ -47,12 +49,32 @@ final class PlayerPersistenceMapper {
         entity.setCompletedMatch(pm.isCompletedMatch());
         entity.setOutcome(pm.getStateMatch().getCode());
         entity.setDurationSeconds(pm.getDuration() == null ? null : pm.getDuration().getSeconds());
-        entity.setCsrTierBefore(pm.getPreviousTier());
-        entity.setCsrDesignationBefore(pm.getPreviousDesignation());
-        entity.setCsrTierAfter(pm.getUpdatedTier());
-        entity.setCsrDesignationAfter(pm.getUpdatedDesignation());
-        entity.setMmrBefore(pm.getPreviousMmr());
-        entity.setMmrAfter(pm.getUpdatedMmr());
+        CsrReading before = pm.getPreviousCsr();
+        if (before != null) {
+            entity.setCsrTierBefore(before.tier());
+            entity.setCsrDesignationBefore(before.designation());
+            entity.setCsrRawBefore(before.raw());
+            entity.setCsrPercentBefore(before.percentToNextTier());
+            entity.setCsrMeasurementRemainingBefore(before.measurementMatchesRemaining());
+            entity.setCsrRankBefore(before.rank());
+        }
+        CsrReading after = pm.getUpdatedCsr();
+        if (after != null) {
+            entity.setCsrTierAfter(after.tier());
+            entity.setCsrDesignationAfter(after.designation());
+            entity.setCsrRawAfter(after.raw());
+            entity.setCsrPercentAfter(after.percentToNextTier());
+            entity.setCsrMeasurementRemainingAfter(after.measurementMatchesRemaining());
+            entity.setCsrRankAfter(after.rank());
+        }
+        if (pm.getPreviousMmr() != null) {
+            entity.setMmrBefore(pm.getPreviousMmr().rating());
+            entity.setMmrVarianceBefore(pm.getPreviousMmr().variance());
+        }
+        if (pm.getUpdatedMmr() != null) {
+            entity.setMmrAfter(pm.getUpdatedMmr().rating());
+            entity.setMmrVarianceAfter(pm.getUpdatedMmr().variance());
+        }
         entity.setXpBefore(pm.getPreviousXp());
         entity.setXpAfter(pm.getUpdatedXp());
         return entity;
@@ -79,12 +101,14 @@ final class PlayerPersistenceMapper {
         pm.setPlayerIndex(entity.getPlayerIndex());
         pm.setTeamPlayerIndex(entity.getTeamPlayerIndex());
         pm.setDuration(entity.getDurationSeconds() == null ? null : Duration.ofSeconds(entity.getDurationSeconds()));
-        pm.setPreviousTier(entity.getCsrTierBefore());
-        pm.setPreviousDesignation(entity.getCsrDesignationBefore());
-        pm.setUpdatedTier(entity.getCsrTierAfter());
-        pm.setUpdatedDesignation(entity.getCsrDesignationAfter());
-        pm.setPreviousMmr(entity.getMmrBefore());
-        pm.setUpdatedMmr(entity.getMmrAfter());
+        pm.setPreviousCsr(CsrReading.ofNullable(entity.getCsrTierBefore(), entity.getCsrDesignationBefore(),
+                entity.getCsrRawBefore(), entity.getCsrPercentBefore(),
+                entity.getCsrMeasurementRemainingBefore(), entity.getCsrRankBefore()));
+        pm.setUpdatedCsr(CsrReading.ofNullable(entity.getCsrTierAfter(), entity.getCsrDesignationAfter(),
+                entity.getCsrRawAfter(), entity.getCsrPercentAfter(),
+                entity.getCsrMeasurementRemainingAfter(), entity.getCsrRankAfter()));
+        pm.setPreviousMmr(MmrReading.ofNullable(entity.getMmrBefore(), entity.getMmrVarianceBefore()));
+        pm.setUpdatedMmr(MmrReading.ofNullable(entity.getMmrAfter(), entity.getMmrVarianceAfter()));
         pm.setPreviousXp(entity.getXpBefore());
         pm.setUpdatedXp(entity.getXpAfter());
         return pm;

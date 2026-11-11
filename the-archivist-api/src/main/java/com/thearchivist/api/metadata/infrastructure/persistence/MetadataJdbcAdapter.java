@@ -83,14 +83,16 @@ public class MetadataJdbcAdapter implements MetadataRepositoryPort {
         for (PlaylistInfo p : playlists) {
             jdbc.sql("""
                     INSERT INTO the_archivist.playlists
-                        (playlist_id, name, stats_classification, team_game, hidden, synced_at)
-                    VALUES (:id, :name, :stats, :team, :hidden, now())
+                        (playlist_id, name, code, stats_classification, team_game, hidden, synced_at)
+                    VALUES (:id, :name, :code, :stats, :team, :hidden, now())
                     ON CONFLICT (playlist_id) DO UPDATE
-                    SET name = EXCLUDED.name, stats_classification = EXCLUDED.stats_classification,
+                    SET name = EXCLUDED.name, code = EXCLUDED.code,
+                        stats_classification = EXCLUDED.stats_classification,
                         team_game = EXCLUDED.team_game, hidden = EXCLUDED.hidden, synced_at = now()
                     """)
                     .param("id", p.id())
                     .param("name", p.name())
+                    .param("code", p.code(), Types.VARCHAR)
                     .param("stats", p.statsClassification())
                     .param("team", p.teamGame())
                     .param("hidden", p.hidden())
@@ -151,12 +153,13 @@ public class MetadataJdbcAdapter implements MetadataRepositoryPort {
     @Transactional(readOnly = true)
     public List<PlaylistInfo> findPlaylists() {
         return jdbc.sql("""
-                        SELECT playlist_id, name, stats_classification, team_game, hidden
+                        SELECT playlist_id, name, code, stats_classification, team_game, hidden
                         FROM the_archivist.playlists ORDER BY name
                         """)
                 .query((rs, i) -> new PlaylistInfo(
                         rs.getObject("playlist_id", UUID.class),
                         rs.getString("name"),
+                        rs.getString("code"),
                         rs.getString("stats_classification"),
                         (Boolean) rs.getObject("team_game"),
                         (Boolean) rs.getObject("hidden")))

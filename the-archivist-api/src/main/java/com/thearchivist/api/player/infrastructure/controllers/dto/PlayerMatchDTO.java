@@ -21,5 +21,6 @@ public record PlayerMatchDTO(
         Double mmrBefore,
         Double mmrAfter
 ) {
-    public record Csr(Integer tier, Integer designation) {}
+    /** percentToNextTier: avance (0-100) hacia el siguiente tier; es la barra de progreso del rango. */
+    public record Csr(Integer tier, Integer designation, Integer percentToNextTier) {}
 }

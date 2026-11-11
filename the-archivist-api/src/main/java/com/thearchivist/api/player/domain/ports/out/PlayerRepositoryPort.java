@@ -16,8 +16,10 @@ public interface PlayerRepositoryPort {
     /**
      * Guarda al jugador (con su lastSync) e inserta solo las partidas que todavía no
      * tiene registradas. Es idempotente: llamarlo dos veces con lo mismo no duplica nada.
+     *
+     * @return cuántas partidas eran nuevas para este jugador (0 si ya las tenía todas)
      */
-    void savePlayerHistory(Player player, List<PlayerMatch> matches);
+    int savePlayerHistory(Player player, List<PlayerMatch> matches);
 
     /** Partidas del jugador, la más reciente primero. {@code playlistIds} nulo/vacío = sin filtro. */
     List<PlayerMatch> findMatches(String gamertag, int page, int size, List<UUID> playlistIds);

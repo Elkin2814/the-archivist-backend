@@ -11,12 +11,12 @@ import com.thearchivist.api.player.infrastructure.persistence.repository.PlayerJ
 import com.thearchivist.api.player.infrastructure.persistence.repository.PlayerMatchJpaRepository;
 import com.thearchivist.api.stats.domain.enums.GameMode;
 import com.thearchivist.api.stats.domain.enums.StateMatch;
-import org.springframework.jdbc.core.simple.JdbcClient;
+import com.thearchivist.api.stats.domain.models.MatchParticipant;
+import com.thearchivist.api.stats.domain.ports.out.MatchAnalysisRepositoryPort;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Types;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
@@ -36,13 +36,13 @@ public class PlayerPersistenceAdapter implements PlayerRepositoryPort {
     private final PlayerJpaRepository playerJpa;
     private final MatchJpaRepository matchJpa;
     private final PlayerMatchJpaRepository playerMatchJpa;
-    private final JdbcClient jdbc;
+    private final MatchAnalysisRepositoryPort matchAnalysis;
 
     public PlayerPersistenceAdapter(PlayerJpaRepository playerJpa,
                                     MatchJpaRepository matchJpa,
                                     PlayerMatchJpaRepository playerMatchJpa,
-                                    JdbcClient jdbc) {
-        this.jdbc = jdbc;
+                                    MatchAnalysisRepositoryPort matchAnalysis) {
+        this.matchAnalysis = matchAnalysis;
         this.playerJpa = playerJpa;
         this.matchJpa = matchJpa;
         this.playerMatchJpa = playerMatchJpa;
@@ -56,7 +56,7 @@ public class PlayerPersistenceAdapter implements PlayerRepositoryPort {
 
     @Override
     @Transactional
-    public void savePlayerHistory(Player player, List<PlayerMatch> matches) {
+    public int savePlayerHistory(Player player, List<PlayerMatch> matches) {
         final PlayerEntity base = playerJpa.findByGamerTag(player.getGamerTag()).orElseGet(() -> {
             PlayerEntity created = new PlayerEntity();
             created.setGamerTag(player.getGamerTag());
@@ -66,7 +66,7 @@ public class PlayerPersistenceAdapter implements PlayerRepositoryPort {
         PlayerEntity playerEntity = playerJpa.save(base);
 
         if (matches.isEmpty()) {
-            return;
+            return 0;
         }
 
         // Una partida solo puede aparecer una vez por jugador (idempotencia por MatchId).
@@ -82,6 +82,7 @@ public class PlayerPersistenceAdapter implements PlayerRepositoryPort {
             knownMatches.put(known.getMatchId(), known);
         }
 
+        int added = 0;
         for (Map.Entry<UUID, PlayerMatch> entry : byMatchId.entrySet()) {
             if (alreadySaved.contains(entry.getKey())) {
                 continue;
@@ -92,40 +93,36 @@ public class PlayerPersistenceAdapter implements PlayerRepositoryPort {
                 matchEntity = matchJpa.save(PlayerPersistenceMapper.toEntity(pm.getMatch()));
             }
             playerMatchJpa.save(PlayerPersistenceMapper.toEntity(pm, playerEntity, matchEntity));
+            added++;
         }
 
         // Las filas de matches deben estar en la base antes de insertar los hechos con SQL directo.
         matchJpa.flush();
         saveParticipants(byMatchId.values());
+        return added;
     }
 
     /**
      * Guarda el hecho "este líder jugó esta partida y obtuvo este resultado" SIN gamertag.
      * Es la capa permanente para el análisis: no se borra cuando se limpia la caché de jugadores.
-     * Idempotente por (partida, índice de jugador).
+     * Idempotente por (partida, índice de jugador); si Match Result ya trajo la fila, no la pisa.
      */
     private void saveParticipants(Collection<PlayerMatch> matches) {
         for (PlayerMatch pm : matches) {
             if (pm.getPlayerIndex() == null) continue;
-            jdbc.sql("""
-                    INSERT INTO the_archivist.match_participants
-                        (match_id, player_index, team_id, leader_id, outcome, completed_match,
-                         duration_seconds, csr_tier_before, csr_designation_before, mmr_before)
-                    VALUES (:matchId, :playerIndex, :teamId, :leaderId, :outcome, :completed,
-                            :duration, :tier, :designation, :mmr)
-                    ON CONFLICT (match_id, player_index) DO NOTHING
-                    """)
-                    .param("matchId", pm.getMatch().getMatchId())
-                    .param("playerIndex", pm.getPlayerIndex())
-                    .param("teamId", pm.getTeamId(), Types.INTEGER)
-                    .param("leaderId", pm.getLeaderId())
-                    .param("outcome", pm.getStateMatch().getCode())
-                    .param("completed", pm.isCompletedMatch())
-                    .param("duration", pm.getDuration() == null ? null : pm.getDuration().getSeconds(), Types.BIGINT)
-                    .param("tier", pm.getPreviousTier(), Types.INTEGER)
-                    .param("designation", pm.getPreviousDesignation(), Types.INTEGER)
-                    .param("mmr", pm.getPreviousMmr(), Types.DOUBLE)
-                    .update();
+            matchAnalysis.saveParticipant(pm.getMatch().getMatchId(), new MatchParticipant(
+                    pm.getPlayerIndex(),
+                    pm.getTeamId(),
+                    pm.getTeamPlayerIndex(),
+                    pm.getLeaderId(),
+                    pm.getStateMatch().getCode(),
+                    pm.isCompletedMatch(),
+                    true,
+                    pm.getDuration() == null ? null : pm.getDuration().getSeconds(),
+                    pm.getPreviousCsr(),
+                    pm.getUpdatedCsr(),
+                    pm.getPreviousMmr(),
+                    pm.getUpdatedMmr()));
         }
     }
 

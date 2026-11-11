@@ -2,7 +2,6 @@ package com.thearchivist.api.player.infrastructure.haloApi;
 
 import com.thearchivist.api.player.domain.models.Match;
 import com.thearchivist.api.player.domain.models.PlayerMatch;
-import com.thearchivist.api.player.infrastructure.haloApi.dto.HaloCsrDTO;
 import com.thearchivist.api.player.infrastructure.haloApi.dto.HaloMatchResultDTO;
 import com.thearchivist.api.player.infrastructure.haloApi.dto.HaloRatingProgressDTO;
 import com.thearchivist.api.stats.domain.enums.GameMode;
@@ -60,24 +59,16 @@ public final class HaloHistoryMapper {
 
         HaloRatingProgressDTO rating = dto.ratingProgress();
         if (rating != null) {
-            HaloCsrDTO before = rating.previousCsr();
-            HaloCsrDTO after = rating.updatedCsr();
-            if (before != null) {
-                pm.setPreviousTier(before.tier());
-                pm.setPreviousDesignation(before.designation());
-            }
-            if (after != null) {
-                pm.setUpdatedTier(after.tier());
-                pm.setUpdatedDesignation(after.designation());
-            }
-            if (rating.previousMmr() != null) pm.setPreviousMmr(rating.previousMmr().rating());
-            if (rating.updatedMmr() != null) pm.setUpdatedMmr(rating.updatedMmr().rating());
+            pm.setPreviousCsr(HaloRatingMapper.toCsr(rating.previousCsr()));
+            pm.setUpdatedCsr(HaloRatingMapper.toCsr(rating.updatedCsr()));
+            pm.setPreviousMmr(HaloRatingMapper.toMmr(rating.previousMmr()));
+            pm.setUpdatedMmr(HaloRatingMapper.toMmr(rating.updatedMmr()));
         }
         return Optional.of(pm);
     }
 
     /** Acepta GUID con o sin guiones. Devuelve null si está vacío o es el GUID vacío. */
-    static UUID parseUuid(String raw) {
+    public static UUID parseUuid(String raw) {
         if (raw == null || raw.isBlank()) return null;
         String value = raw.trim();
         if (value.length() == 32 && !value.contains("-")) {
@@ -93,7 +84,7 @@ public final class HaloHistoryMapper {
         }
     }
 
-    private static Instant parseInstant(String raw) {
+    public static Instant parseInstant(String raw) {
         if (raw == null || raw.isBlank()) return null;
         try {
             return Instant.parse(raw);
@@ -103,7 +94,7 @@ public final class HaloHistoryMapper {
     }
 
     /** Formato ISO 8601, por ejemplo "PT20M36.9956805S" (también "P1DT18H1M2.98S"). */
-    private static Duration parseDuration(String raw) {
+    public static Duration parseDuration(String raw) {
         if (raw == null || raw.isBlank()) return null;
         try {
             return Duration.parse(raw);

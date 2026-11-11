@@ -131,9 +131,21 @@ final class HaloMetadataParser {
         String name = displayName(view, block);
         if (id == null || name == null) return Optional.empty();
         return Optional.of(new PlaylistInfo(id, name,
+                playlistCode(block),
                 text(block.get("StatsClassification")),
                 bool(block.get("IsTeamGamePlaylist")),
                 bool(block.get("Hide"))));
+    }
+
+    /** Código de la cola (HW2Playlist.Id, p. ej. CP_RANKED_3v3_WAR). Si ese campo trae un GUID, no es un código. */
+    private static String playlistCode(Map<String, Object> block) {
+        for (Map.Entry<String, Object> entry : block.entrySet()) {
+            if ("id".equalsIgnoreCase(entry.getKey()) && entry.getValue() instanceof String s
+                    && !s.isBlank() && uuid(s) == null) {
+                return s.trim();
+            }
+        }
+        return null;
     }
 
     static Optional<SeasonInfo> toSeason(Map<String, Object> item) {

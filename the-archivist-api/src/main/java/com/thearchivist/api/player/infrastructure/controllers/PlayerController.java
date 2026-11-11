@@ -5,12 +5,16 @@ import com.thearchivist.api.leader.domain.models.LeaderCatalog;
 import com.thearchivist.api.player.domain.models.Match;
 import com.thearchivist.api.player.domain.models.MatchHistory;
 import com.thearchivist.api.player.domain.models.PlayerMatch;
+import com.thearchivist.api.player.domain.models.PlayerClassification;
 import com.thearchivist.api.player.domain.models.PlayerSummary;
+import com.thearchivist.api.player.domain.ports.in.GetPlayerClassificationUseCase;
 import com.thearchivist.api.player.domain.ports.in.GetPlayerHistoryUseCase;
 import com.thearchivist.api.player.domain.ports.in.GetPlayerSummaryUseCase;
 import com.thearchivist.api.player.infrastructure.controllers.dto.MatchHistoryResponse;
+import com.thearchivist.api.player.infrastructure.controllers.dto.PlayerClassificationResponse;
 import com.thearchivist.api.player.infrastructure.controllers.dto.PlayerMatchDTO;
 import com.thearchivist.api.player.infrastructure.controllers.dto.PlayerSummaryResponse;
+import com.thearchivist.api.stats.domain.models.CsrReading;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
@@ -33,11 +37,14 @@ public class PlayerController {
 
     private final GetPlayerHistoryUseCase getPlayerHistoryUseCase;
     private final GetPlayerSummaryUseCase getPlayerSummaryUseCase;
+    private final GetPlayerClassificationUseCase getPlayerClassificationUseCase;
 
     public PlayerController(GetPlayerHistoryUseCase getPlayerHistoryUseCase,
-                            GetPlayerSummaryUseCase getPlayerSummaryUseCase) {
+                            GetPlayerSummaryUseCase getPlayerSummaryUseCase,
+                            GetPlayerClassificationUseCase getPlayerClassificationUseCase) {
         this.getPlayerHistoryUseCase = getPlayerHistoryUseCase;
         this.getPlayerSummaryUseCase = getPlayerSummaryUseCase;
+        this.getPlayerClassificationUseCase = getPlayerClassificationUseCase;
     }
 
     @GetMapping("/{gamertag}/history")
@@ -63,6 +70,43 @@ public class PlayerController {
 
         PlayerSummary summary = getPlayerSummaryUseCase.execute(gamertag, playlistId);
         return ResponseEntity.ok(toSummaryResponse(summary, Language.fromCode(lang)));
+    }
+
+    /**
+     * Clasificación del jugador en cada cola: rango oficial y MMR exactos, puesto en el leaderboard si lo tiene,
+     * win rate con intervalo de confianza y qué tan firme es el resultado.
+     */
+    @GetMapping("/{gamertag}/classification")
+    public ResponseEntity<PlayerClassificationResponse> getPlayerClassification(
+            @PathVariable @Pattern(regexp = GAMERTAG_REGEX, message = "Gamertag inválido") String gamertag) {
+
+        PlayerClassification classification = getPlayerClassificationUseCase.execute(gamertag);
+        return ResponseEntity.ok(toClassificationResponse(classification));
+    }
+
+    private static final List<String> CLASSIFICATION_NOTES = List.of(
+            "El rango (designationName, tier, csr) y el MMR son los valores exactos de la última partida de la cola.",
+            "mmrPercentile ubica al jugador entre los participantes de nuestra base en esa cola; es relativo a la "
+                    + "muestra rastreada (que incluye muchos jugadores de alto nivel), no a toda la población.",
+            "winRateLow/winRateHigh es el intervalo de Wilson al 95 %; confidence resume su ancho. "
+                    + "Las caídas de servidor ya detectadas no cuentan como derrota.");
+
+    private PlayerClassificationResponse toClassificationResponse(PlayerClassification c) {
+        List<PlayerClassificationResponse.PlaylistLine> lines = c.playlists().stream()
+                .map(p -> {
+                    PlayerClassification.Standing s = p.standing();
+                    PlayerClassificationResponse.Standing standing = s == null ? null
+                            : new PlayerClassificationResponse.Standing(s.designation(), s.designationName(),
+                            s.tier(), s.csr(), s.percentToNextTier(), s.measurementMatchesRemaining(),
+                            s.mmr(), s.mmrVariance(), s.mmrPercentile(), s.percentileSample());
+                    return new PlayerClassificationResponse.PlaylistLine(p.playlistId(), p.playlistName(),
+                            p.matches(), p.wins(), p.losses(), p.winRate().ratePct(), p.winRate().lowPct(),
+                            p.winRate().highPct(), p.confidence().name(), p.lastMatch(), p.activity().name(),
+                            p.provisional(), p.leaderboardRank(), standing);
+                })
+                .toList();
+        return new PlayerClassificationResponse(c.player().getGamerTag(), c.player().getLastSync(), lines,
+                CLASSIFICATION_NOTES);
     }
 
     private PlayerSummaryResponse toSummaryResponse(PlayerSummary summary, Language language) {
@@ -142,16 +186,16 @@ public class PlayerController {
                 pm.getLeaderId(),
                 pm.getStateMatch().name(),
                 pm.getDuration() == null ? null : pm.getDuration().getSeconds(),
-                csr(pm.getPreviousTier(), pm.getPreviousDesignation()),
-                csr(pm.getUpdatedTier(), pm.getUpdatedDesignation()),
-                pm.getPreviousMmr(),
-                pm.getUpdatedMmr()
+                csr(pm.getPreviousCsr()),
+                csr(pm.getUpdatedCsr()),
+                pm.getPreviousMmr() == null ? null : pm.getPreviousMmr().rating(),
+                pm.getUpdatedMmr() == null ? null : pm.getUpdatedMmr().rating()
         );
     }
 
     /** Nulo cuando la partida no tiene CSR (por ejemplo, no clasificatoria). */
-    private PlayerMatchDTO.Csr csr(Integer tier, Integer designation) {
-        if (tier == null && designation == null) return null;
-        return new PlayerMatchDTO.Csr(tier, designation);
+    private PlayerMatchDTO.Csr csr(CsrReading csr) {
+        if (csr == null || (csr.tier() == null && csr.designation() == null)) return null;
+        return new PlayerMatchDTO.Csr(csr.tier(), csr.designation(), csr.percentToNextTier());
     }
 }

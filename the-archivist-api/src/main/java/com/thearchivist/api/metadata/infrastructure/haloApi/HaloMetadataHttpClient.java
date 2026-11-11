@@ -1,5 +1,6 @@
 package com.thearchivist.api.metadata.infrastructure.haloApi;
 
+import com.thearchivist.api.config.HaloApiGate;
 import com.thearchivist.api.config.HaloApiProperties;
 import com.thearchivist.api.metadata.domain.models.CsrDesignationInfo;
 import com.thearchivist.api.metadata.domain.models.LeaderMetadataInfo;
@@ -40,9 +41,11 @@ public class HaloMetadataHttpClient implements HaloMetadataClientPort {
 
     private final RestClient restClient;
     private final String apiKey;
+    private final HaloApiGate gate;
 
-    public HaloMetadataHttpClient(HaloApiProperties properties) {
+    public HaloMetadataHttpClient(HaloApiProperties properties, HaloApiGate gate) {
         this.apiKey = properties.key();
+        this.gate = gate;
 
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
@@ -112,6 +115,7 @@ public class HaloMetadataHttpClient implements HaloMetadataClientPort {
     }
 
     private Map<String, Object> fetchPage(String resource, int startAt) {
+        gate.acquire();
         try {
             Map<String, Object> body = restClient.get()
                     .uri(uri -> uri.path("/metadata/hw2/" + resource)
@@ -124,8 +128,7 @@ public class HaloMetadataHttpClient implements HaloMetadataClientPort {
                     });
             return body == null ? Map.of() : body;
         } catch (RestClientResponseException e) {
-            throw new HaloApiUnavailableException(
-                    "La Metadata de la Halo API respondió HTTP " + e.getStatusCode().value() + " en /" + resource, e);
+            throw gate.unavailable(e.getStatusCode().value(), e);
         } catch (RestClientException e) {
             throw new HaloApiUnavailableException("No se pudo contactar a la Halo API: " + e.getMessage(), e);
         }

@@ -2,6 +2,7 @@ package com.thearchivist.api.leader.infrastructure.controllers;
 
 import com.thearchivist.api.leader.domain.enums.Language;
 import com.thearchivist.api.leader.domain.models.LeaderCatalog;
+import com.thearchivist.api.leader.domain.models.LeaderDifficulty;
 import com.thearchivist.api.leader.infrastructure.controllers.dto.LeaderResponse;
 import com.thearchivist.api.metadata.domain.models.LeaderMetadataInfo;
 import com.thearchivist.api.metadata.domain.ports.in.GetMetadataUseCase;
@@ -38,7 +39,8 @@ public class LeaderController {
         return Arrays.stream(LeaderCatalog.values())
                 .map(l -> new LeaderResponse(
                         l.getApiId(), l.name(), l.getFaction().name(), l.name(language), l.alias(language),
-                        l.getApiId() == null ? null : images.get(l.getApiId())))
+                        l.getApiId() == null ? null : images.get(l.getApiId()),
+                        LeaderDifficulty.of(l).map(Enum::name).orElse(null)))
                 .toList();
     }
 }

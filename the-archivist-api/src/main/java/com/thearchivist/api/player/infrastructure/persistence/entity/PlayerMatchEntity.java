@@ -60,17 +60,47 @@ public class PlayerMatchEntity {
     @Column(name = "csr_designation_before")
     private Integer csrDesignationBefore;
 
+    @Column(name = "csr_raw_before")
+    private Integer csrRawBefore;
+
+    @Column(name = "csr_percent_before")
+    private Integer csrPercentBefore;
+
+    @Column(name = "csr_measurement_remaining_before")
+    private Integer csrMeasurementRemainingBefore;
+
+    @Column(name = "csr_rank_before")
+    private Integer csrRankBefore;
+
     @Column(name = "csr_tier_after")
     private Integer csrTierAfter;
 
     @Column(name = "csr_designation_after")
     private Integer csrDesignationAfter;
 
+    @Column(name = "csr_raw_after")
+    private Integer csrRawAfter;
+
+    @Column(name = "csr_percent_after")
+    private Integer csrPercentAfter;
+
+    @Column(name = "csr_measurement_remaining_after")
+    private Integer csrMeasurementRemainingAfter;
+
+    @Column(name = "csr_rank_after")
+    private Integer csrRankAfter;
+
     @Column(name = "mmr_before")
     private Double mmrBefore;
 
+    @Column(name = "mmr_variance_before")
+    private Double mmrVarianceBefore;
+
     @Column(name = "mmr_after")
     private Double mmrAfter;
+
+    @Column(name = "mmr_variance_after")
+    private Double mmrVarianceAfter;
 
     @Column(name = "xp_before")
     private Integer xpBefore;
